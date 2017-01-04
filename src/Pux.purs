@@ -95,8 +95,8 @@ foreign import render :: forall a eff. Fn3 (a -> Eff eff Unit) (a -> a) (Html a)
 -- | The `update` and `view` functions describe how to step the state and view
 -- | the state.
 -- |
--- | The `inputs` array is for any external signals you might need. These will
--- | be merged into the app's input signal.
+-- | The `inputs` array enables a Pux app to handle externally-sourced actions.
+-- | These are merged into the app's internal action signal.
 type Config state action eff =
   { update :: Update state action eff
   , view :: state -> Html action
@@ -134,8 +134,10 @@ type App state action =
 -- | asynchronous effects that return an action.
 type Update state action eff = action -> state -> EffModel state action eff
 
--- | `EffModel` is a container for state and a collection of asynchronous
--- | effects which return an action.
+-- | `EffModel` models the result of updating the app's state.
+-- | It enables simply setting the new state as well as defining
+-- |   asynchronous means of updating the state, which consists of
+-- |   producing an action the app can handle from an asynchronous effect.
 type EffModel state action eff =
   { state :: state
   , effects :: Array (Aff (CoreEffects eff) action)
