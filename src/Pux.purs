@@ -21,7 +21,6 @@ import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Exception (EXCEPTION)
 import Data.Foldable (foldl, sequence_)
-import Data.Function.Uncurried (Fn3, runFn3)
 import Data.List (List(Nil), singleton, (:), reverse, fromFoldable)
 import Data.Maybe (fromJust)
 import Partial.Unsafe (unsafePartial)
@@ -53,8 +52,8 @@ start config = do
   -- Merge external actions into internal `actionSignal`.
   let inputSignal :: Signal (List action)
       inputSignal = unsafePartial $ fromJust $ mergeMany $
-        -- reverse to emulate left-associative functions
-        --   and prioritize external actions?
+        -- Reverse to emulate left-associative functions
+        --   and prioritize external actions.
         reverse (actionSignal : map (map singleton) (fromFoldable config.inputs))
   -- Initial state-update model on which to iterate. Models the result of a state update.
   let effModelSignal :: Signal (EffModel state action eff)
@@ -64,15 +63,16 @@ start config = do
       stateSignal = effModelSignal ~> _.state
   -- Html, which is a virtual-dom tree. Pass to `renderToDOM` to render in browser.
   let htmlSignal :: Signal (Html action)
-      htmlSignal = stateSignal ~> renderState actionChannel
+      htmlSignal = stateSignal ~> formatForReact actionChannel <<< config.view
   -- Run effects, sending their resulting Actions to the `actionChannel`.
   let effectsSignal = effModelSignal ~> map (launchAffect actionChannel) <<< _.effects
   runSignal $ effectsSignal ~> sequence_
   -- Return externally-relevant data.
   pure $ { html: htmlSignal, state: stateSignal, actionChannel: actionChannel }
     where
-      renderState actionChannel state =
-        runFn3 render (send actionChannel <<< singleton) (\a -> a) (config.view state)
+      formatForReact :: Channel (List action) -> Html action -> Html action
+      formatForReact actionChannel html =
+        formatTreeForReact (send actionChannel <<< singleton) html
       foldActions :: List action -> EffModel state action eff -> EffModel state action eff
       foldActions actions effModel =
         foldl foldState (noEffects effModel.state) actions
@@ -87,7 +87,7 @@ start config = do
           liftEff $ send actionChannel (singleton action)
 
 -- Render Pux elements to a virtual-dom tree.
-foreign import render :: forall a eff. Fn3 (a -> Eff eff Unit) (a -> a) (Html a) (Html a)
+foreign import formatTreeForReact :: forall a eff. (a -> Eff eff Unit) -> (Html a) -> (Html a)
 
 -- | The configuration of an app consists of update and view functions along
 -- | with an initial state.

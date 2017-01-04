@@ -9,9 +9,13 @@ exports.text = function (text) {
   return text;
 };
 
+// :: String -> Array Attribute -> Array Html
+// Html is reactDOM element.
 exports.element = function (tagName, attrs, children) {
+  // ??? When is children type `[[]]`?
   if (Array.isArray(children[0])) children = children[0];
 
+  // `React.createElement` requires name-value map for properties.
   var props = attrs.reduce(function (obj, attr) {
     var key = attr[0];
     var val = attr[1];
