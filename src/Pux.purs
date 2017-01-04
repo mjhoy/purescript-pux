@@ -15,7 +15,7 @@ module Pux
   , toReact
   ) where
 
-import Control.Monad.Aff (Aff, launchAff, later)
+import Control.Monad.Aff (Aff, Canceler, later, launchAff)
 import Control.Monad.Aff.Unsafe (unsafeCoerceAff)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Class (liftEff)
@@ -25,8 +25,7 @@ import Data.Function.Uncurried (Fn3, runFn3)
 import Data.List (List(Nil), singleton, (:), reverse, fromFoldable)
 import Data.Maybe (fromJust)
 import Partial.Unsafe (unsafePartial)
-import Prelude (Unit, ($), (<<<), map, pure)
-import Prelude as Prelude
+import Prelude (Unit, ($), (<<<), bind, map, pure)
 import Pux.Html (Html)
 import React (ReactClass)
 import Signal (Signal, (~>), mergeMany, foldp, runSignal)
@@ -50,24 +49,44 @@ start :: forall state action eff.
 start config = do
   actionChannel <- channel Nil
   let actionSignal = subscribe actionChannel
-      input = unsafePartial $ fromJust $ mergeMany $
-        reverse (actionSignal : map (map singleton) (fromFoldable $ config.inputs))
-      foldState effModel action = config.update action effModel.state
+  -- Create a single signal to update the app's state.
+  -- Merge external actions into internal `actionSignal`.
+  let inputSignal :: Signal (List action)
+      inputSignal = unsafePartial $ fromJust $ mergeMany $
+        -- reverse to emulate left-associative functions
+        --   and prioritize external actions?
+        reverse (actionSignal : map (map singleton) (fromFoldable config.inputs))
+  -- Initial state-update model on which to iterate. Models the result of a state update.
+  let effModelSignal :: Signal (EffModel state action eff)
+      effModelSignal = foldp foldActions (noEffects config.initialState) inputSignal
+  -- Track state.
+  let stateSignal :: Signal state
+      stateSignal = effModelSignal ~> _.state
+  -- Html, which is a virtual-dom tree. Pass to `renderToDOM` to render in browser.
+  let htmlSignal :: Signal (Html action)
+      htmlSignal = stateSignal ~> renderState actionChannel
+  -- Run effects, sending their resulting Actions to the `actionChannel`.
+  let effectsSignal = effModelSignal ~> map (launchAffect actionChannel) <<< _.effects
+  runSignal $ effectsSignal ~> sequence_
+  -- Return externally-relevant data.
+  pure $ { html: htmlSignal, state: stateSignal, actionChannel: actionChannel }
+    where
+      renderState actionChannel state =
+        runFn3 render (send actionChannel <<< singleton) (\a -> a) (config.view state)
+      foldActions :: List action -> EffModel state action eff -> EffModel state action eff
       foldActions actions effModel =
         foldl foldState (noEffects effModel.state) actions
-      effModelSignal =
-        foldp foldActions (noEffects config.initialState) input
-      stateSignal = effModelSignal ~> _.state
-      htmlSignal = stateSignal ~> \state ->
-        (runFn3 render) (send actionChannel <<< singleton) (\a -> a) (config.view state)
-      mapAffect affect = launchAff $ unsafeCoerceAff do
-        action <- later affect
-        liftEff $ send actionChannel (singleton action)
-      effectsSignal = effModelSignal ~> map mapAffect <<< _.effects
-  runSignal $ effectsSignal ~> sequence_
-  pure $ { html: htmlSignal, state: stateSignal, actionChannel: actionChannel }
-  where bind = Prelude.bind
+      foldState :: EffModel state action eff -> action -> EffModel state action eff
+      foldState effModel action = config.update action effModel.state
+      launchAffect :: Channel (List action)
+          -> Aff (CoreEffects eff) action
+          -> Eff (CoreEffects eff) (Canceler (channel :: CHANNEL | eff))
+      launchAffect actionChannel affect =
+        launchAff $ unsafeCoerceAff do
+          action <- later affect
+          liftEff $ send actionChannel (singleton action)
 
+-- Render Pux elements to a virtual-dom tree.
 foreign import render :: forall a eff. Fn3 (a -> Eff eff Unit) (a -> a) (Html a) (Html a)
 
 -- | The configuration of an app consists of update and view functions along
@@ -103,6 +122,8 @@ type CoreEffects eff = (channel :: CHANNEL, err :: EXCEPTION | eff)
 -- |   app. This should be fed into `renderToDOM`.
 -- |
 -- | * `state` – A signal representing the application's current state.
+-- |
+-- | * `actionChannel` - A signal of actions the application handles.
 type App state action =
   { html :: Signal (Html action)
   , state :: Signal state
@@ -117,7 +138,8 @@ type Update state action eff = action -> state -> EffModel state action eff
 -- | effects which return an action.
 type EffModel state action eff =
   { state :: state
-  , effects :: Array (Aff (CoreEffects eff) action) }
+  , effects :: Array (Aff (CoreEffects eff) action)
+  }
 
 -- | Create an `Update` function from a simple step function.
 fromSimple :: forall s a eff. (a -> s -> s) -> Update s a eff
