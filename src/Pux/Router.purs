@@ -31,7 +31,7 @@ import Data.List (catMaybes, List(Nil, Cons), fromFoldable, drop)
 import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Profunctor (lmap)
 import Data.Tuple (Tuple(Tuple), fst, snd)
-import Global (readFloat, isNaN)
+import Global (decodeURIComponent, readFloat, isNaN)
 import Prelude (class Applicative, class Apply, class Functor, Unit, (<<<), ($), map, (==), bind, (<*>), (<$>), pure, unit, (<>))
 import Pux.Html (Html, Attribute, element)
 import Pux.Html.Attributes (attr)
@@ -107,7 +107,7 @@ bool = Match $ \r ->
 str :: Match String
 str = Match $ \r ->
   case r of
-    Cons (Path p) ps -> Just $ Tuple ps p
+    Cons (Path p) ps -> Just $ Tuple ps (decodeURIComponent p)
     _ -> Nothing
 
 param :: String -> Match String
