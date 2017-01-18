@@ -11,7 +11,7 @@ exports.handler = function (key, action) {
   return [key, puxHandler(function (input, parentAction) {
     return function (ev) {
       if ((key === 'onSubmit')
-      || (key === 'onClick' && ev.currentTarget.nodeName.toLowerCase() === 'a')) {
+      || (key === 'onClick' && ev.currentTarget && ev.currentTarget.nodeName.toLowerCase() === 'a')) {
         ev.preventDefault();
       }
       input(parentAction(action(ev)))();
