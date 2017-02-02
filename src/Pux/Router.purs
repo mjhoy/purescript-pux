@@ -107,7 +107,7 @@ bool = Match $ \r ->
 str :: Match String
 str = Match $ \r ->
   case r of
-    Cons (Path p) ps -> Just $ Tuple ps (decodeURIComponent p)
+    Cons (Path p) ps -> Just $ Tuple ps p
     _ -> Nothing
 
 param :: String -> Match String
@@ -122,7 +122,7 @@ param key = Match $ \r ->
 params :: Match (M.Map String String)
 params = Match $ \r ->
   case r of
-    Cons (Query map) ps -> Just $ Tuple ps map
+    Cons (Query m) ps -> Just $ Tuple ps m
     _ -> Nothing
 
 any :: Match Unit
@@ -165,7 +165,7 @@ routeFromUrl url = case S.indexOf (S.Pattern "?") url of
   where
     parsePath :: Route -> String -> Route
     parsePath query = drop 1 <<< foldr prependPath query <<< S.split (S.Pattern "/")
-      where prependPath = lmap Path Cons
+      where prependPath = lmap (Path <<< decodeURIComponent) Cons
 
 parseQuery :: String -> RoutePart
 parseQuery s = Query <<< M.fromFoldable <<< catMaybes <<< map part2tuple $ parts
@@ -177,7 +177,7 @@ parseQuery s = Query <<< M.fromFoldable <<< catMaybes <<< map part2tuple $ parts
   part2tuple part = do
     let param' = S.split (S.Pattern "=") part
     guard $ A.length param' == 2
-    Tuple <$> (A.head param') <*> (param' A.!! 1)
+    Tuple <$> (decodeURIComponent <$> (A.head param')) <*> (decodeURIComponent <$> (param' A.!! 1))
 
 router :: forall a. String -> Match a -> Maybe a
 router url (Match match) = maybe Nothing (Just <<< snd) result
