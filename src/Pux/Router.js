@@ -30,7 +30,7 @@ exports.linkHandler = function (url) {
       ev.preventDefault();
       if (typeof window !== 'undefined') {
         window.history.pushState({}, document.title, url);
-        window.dispatchEvent(new Event('popstate'));
+        window.dispatchEvent(new CustomEvent('popstate'));
       }
     };
   })];
@@ -40,7 +40,7 @@ exports.navigateTo = function (url) {
   return function () {
     if (typeof window !== 'undefined') {
       window.history.pushState({}, document.title, url);
-      window.dispatchEvent(new Event('popstate'));
+      window.dispatchEvent(new CustomEvent('popstate'));
     }
   }
 };
