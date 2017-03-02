@@ -82,7 +82,7 @@ exports.render = function (input, parentAction, html) {
     var newProps = {};
 
     for (var key in props) {
-      if (key !== 'puxParentAction' && props[key].isPuxHandler) {
+      if (key !== 'puxParentAction' && typeof props[key] == 'function' && props[key].isPuxHandler) {
         newProps[key] = props[key](input, parentAction);
       }
     }
