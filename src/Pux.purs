@@ -13,6 +13,7 @@ module Pux
   , renderToString
   , start
   , toReact
+  , fromReact
   ) where
 
 import Control.Monad.Aff (Aff, launchAff, later)
@@ -27,7 +28,7 @@ import Data.Maybe (fromJust)
 import Partial.Unsafe (unsafePartial)
 import Prelude (Unit, ($), (<<<), map, pure)
 import Prelude as Prelude
-import Pux.Html (Html)
+import Pux.Html (Attribute, Html)
 import React (ReactClass)
 import Signal (Signal, (~>), mergeMany, foldp, runSignal)
 import Signal.Channel (CHANNEL, Channel, channel, subscribe, send)
@@ -149,3 +150,9 @@ foreign import renderToString :: forall a eff. Signal (Html a) -> Eff eff String
 foreign import toReact :: forall a props eff.
                           Signal (Html a) ->
                           Eff eff (ReactClass props)
+
+foreign import fromReact :: forall component a.
+                            component ->
+                            (Array (Attribute a) ->
+                             Array (Html a) ->
+                             Html a)
