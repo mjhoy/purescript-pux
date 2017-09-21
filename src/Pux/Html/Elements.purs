@@ -3,8 +3,8 @@ module Pux.Html.Elements where
 import Data.Function.Uncurried (Fn3, runFn3)
 import Prelude (class Functor)
 
-foreign import data Attribute :: * -> *
-foreign import data Html :: * -> *
+foreign import data Attribute :: Type -> Type
+foreign import data Html :: Type -> Type
 
 -- | Forward child `Html` actions to their parent action. Map over `Html` that
 -- | sends actions of type `a` and return `Html` that sends actions of type `b`.

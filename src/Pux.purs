@@ -16,7 +16,7 @@ module Pux
   , fromReact
   ) where
 
-import Control.Monad.Aff (Aff, launchAff, later)
+import Control.Monad.Aff (Aff, launchAff, delay)
 import Control.Monad.Aff.Unsafe (unsafeCoerceAff)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Class (liftEff)
@@ -25,8 +25,9 @@ import Data.Foldable (foldl, sequence_)
 import Data.Function.Uncurried (Fn3, runFn3)
 import Data.List (List(Nil), singleton, (:), reverse, fromFoldable)
 import Data.Maybe (fromJust)
+import Data.Time.Duration (Milliseconds(..))
 import Partial.Unsafe (unsafePartial)
-import Prelude (Unit, ($), (<<<), map, pure)
+import Prelude (Unit, ($), (<<<), map, pure, discard)
 import Prelude as Prelude
 import Pux.Html (Attribute, Html)
 import React (ReactClass)
@@ -62,7 +63,8 @@ start config = do
       htmlSignal = stateSignal ~> \state ->
         (runFn3 render) (send actionChannel <<< singleton) (\a -> a) (config.view state)
       mapAffect affect = launchAff $ unsafeCoerceAff do
-        action <- later affect
+        delay (Milliseconds 0.0)
+        action <- affect
         liftEff $ send actionChannel (singleton action)
       effectsSignal = effModelSignal ~> map mapAffect <<< _.effects
   runSignal $ effectsSignal ~> sequence_
@@ -96,7 +98,7 @@ type Config state action eff =
 -- | main state = do
 -- |   -- ...
 -- | ```
-type CoreEffects eff = (channel :: CHANNEL, err :: EXCEPTION | eff)
+type CoreEffects eff = (channel :: CHANNEL, exception :: EXCEPTION | eff)
 
 -- | An `App` consists of three signals:
 -- |

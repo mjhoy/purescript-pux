@@ -1,0 +1,17 @@
+{
+    "name": "purescript-pux",
+    "set": "sawhorse-0.11",
+    "source": "https://github.com/mjhoy/package-sets.git",
+    "depends": [
+        "globals",
+        "react",
+        "profunctor",
+        "functions",
+        "maps",
+        "signal",
+        "lists",
+        "eff",
+        "aff",
+        "prelude"
+    ]
+}
