@@ -185,6 +185,8 @@ exports.reactElement = function (name, attrs, children) {
     var component = class_cache[reactAttrs['data-pux-react-class']];
     var props = props_cache[reactAttrs['data-pux-react-props']];
 
+    if (children && children.length == 0) { children = null; }
+
     if (props === undefined) props = {};
 
     for (var key in reactAttrs) {
